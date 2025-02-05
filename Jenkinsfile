@@ -6,7 +6,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/OmBhargude/SubEnum-CI-CD.git' // Or specify a branch like '*/main'
+                git branch: 'main', url: 'https://github.com/OmBhargude/Ditiss-AUG24.git' // Or specify a branch like '*/main'
             }
         }
         stage('Build and Push Docker Image') {
