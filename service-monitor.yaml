@@ -1,0 +1,13 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: subenum-monitor
+  namespace: monitoring  # Or where your Prometheus is
+spec:
+  selector:
+    matchLabels:
+      app: subenum  # Match the labels in your deployment
+  endpoints:
+    - port: metrics  # Match the port name in your service
+      path: /metrics
+      interval: 15s
