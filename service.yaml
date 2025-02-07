@@ -9,8 +9,7 @@ spec:
     - protocol: TCP
       port: 80
       targetPort: 5000
-      name: http  # Added name for the first port
     - protocol: TCP
-      port: 8000
-      name: metrics
-  type: NodePort
+      port: 8000  # Prometheus metrics port
+      name: metrics  # Important: Give it a name
+  type: NodePort  # Or NodePort

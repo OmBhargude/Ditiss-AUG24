@@ -6,7 +6,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/OmBhargude/Ditiss-AUG24.git' // Or specify a branch like '*/main'
+                git branch: 'main', url: 'https://github.com/OmBhargude/SubEnum-CI-CD.git' // Or specify a branch like '*/main'
             }
         }
         stage('Build and Push Docker Image') {
@@ -27,7 +27,7 @@ pipeline {
                         // Deployment doesn't exist, create it along with the service
                         sh "kubectl apply -f deployment.yaml"
                         sh "kubectl apply -f service.yaml"
-			sh "kubectl apply -f service-monitor.yaml"
+			sh "kubectl apply -f k8s/service-monitor.yaml"
                     }
                 }
             }
