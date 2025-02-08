@@ -27,7 +27,6 @@ pipeline {
                         // Deployment doesn't exist, create it along with the service
                         sh "kubectl apply -f deployment.yaml"
                         sh "kubectl apply -f service.yaml"
-			sh "kubectl apply -f service-monitor.yaml"
                     }
                 }
             }
