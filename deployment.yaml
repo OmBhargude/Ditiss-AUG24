@@ -17,13 +17,6 @@ spec:
         image: om1201/subenum3:latest  # Your image name
         ports:
         - containerPort: 5000  # Port your Flask app listens on
-         resources:  # Add resource requests and limits
-           requests:
-             cpu: 100m
-             memory: 256Mi
-           limits:
-             cpu: 500m
-             memory: 512Mi
         env:
         - name: DEBUG_PRINT # Enable debug prints (Optional)
           value: "true"
