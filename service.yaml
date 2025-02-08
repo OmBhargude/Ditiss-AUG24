@@ -9,6 +9,7 @@ spec:
     - protocol: TCP
       port: 80
       targetPort: 5000
+      name: http
     - protocol: TCP
       port: 8000  # Prometheus metrics port
       name: metrics  # Important: Give it a name
