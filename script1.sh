@@ -1,39 +1,39 @@
 #!/bin/bash
 
-# Function to resolve IP address(es) for a subdomain
 resolve_ip() {
   subdomain="$1"
-  ips=$(dig +short "$subdomain" A 2>/dev/null) # Get all IPs
+  ips=$(dig +short "$subdomain" A 2>/dev/null)
   if [[ -z "$ips" ]]; then
-    echo "NA"
+    echo "N/A"  # IP field is "N/A"
   else
-    echo "$ips" | tr '\n' ',' | sed 's/,$//' # Format IPs as comma-separated string
+    echo "$ips" | tr '\n' ',' | sed 's/,$//'
   fi
 }
 
+./subfinder -d "$1" -silent | while read -r line; do
+  subdomain=$(echo "$line" | awk '{print $1}')
+  subdomain=$(echo "$subdomain" | tr -d '[:space:]')
+  status="Unresolvable" # Status is "Unresolvable"
 
-# Print header
-printf "%-40s %-10s %-50s\n" "Subdomain" "Status" "IP Address(es)" # Wider IP column
-
-# Run subfinder and process the output
-./subfinder -d $1 -silent | while read subdomain; do
-  status="Alive"
   ips=$(resolve_ip "$subdomain")
 
-  if [[ "$ips" == "NA" ]]; then
-    status="Dead"
-  fi
+  if [[ "$ips" == "N/A" ]]; then # Check for "N/A"
+      original_line="$subdomain | $status | N/A" # IP field is "N/A"
+      echo "$subdomain,$status,N/A" # IP field is "N/A" for Prometheus
+  elif [[ "$ips" == *"."* ]]; then
+      original_line="$subdomain | Alive | $ips" # Status is "Alive"
+      echo "$subdomain,Alive,$ips" # Status is "Alive" for Prometheus
+  else
+      cname="$ips"
+      resolved_ip=$(dig +short "$cname" A 2>/dev/null)
 
-  if [[ "$ips" == *"."* ]]; then  # Check if it contains a dot (likely an IP)
-    printf "%-40s %-10s %-50s\n" "$subdomain" "$status" "$ips"
-  else  # It's likely a CNAME
-    cname="$ips"  # Store the CNAME
-    resolved_ip=$(dig +short "$cname" A 2>/dev/null) # Resolve the CNAME
-
-    if [[ -z "$resolved_ip" ]]; then # If CNAME cannot be resolved
-      printf "%-40s %-10s %-50s\n" "$subdomain" "$status" "$cname" # Print just the CNAME
-    else
-      printf "%-40s %-10s %-50s\n" "$subdomain" "$status" "$resolved_ip ($cname)" # Print resolved IP and CNAME
-    fi
+      if [[ -z "$resolved_ip" ]]; then
+          original_line="$subdomain | Unresolvable | $cname" # Status is "Unresolvable"
+          echo "$subdomain,Unresolvable,$cname" # Status is "Unresolvable" for Prometheus
+      else
+          original_line="$subdomain | Alive | $resolved_ip ($cname)" # Status is "Alive"
+          echo "$subdomain,Alive,$resolved_ip ($cname)" # Status is "Alive" for Prometheus
+      fi
   fi
+  echo "$original_line" # Print the original line for the web app
 done
