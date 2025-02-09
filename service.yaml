@@ -1,10 +1,10 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: subenum-service
+  name: subenum1-service
 spec:
   selector:
-    app: subenum
+    app: subenum1
   ports:
   - protocol: TCP
     port: 80  # The port that the service exposes (can be different from targetPort)
