@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: subenum1-deployment  # Name of your deployment
+spec:
+  replicas: 4  # Number of pod replicas (adjust as needed)
+  selector:
+    matchLabels:
+      app: subenum1  # Label to match pods
+  template:
+    metadata:
+      labels:
+        app: subenum1  # Label for the pods
+      annotations:  # Add Prometheus annotations here
+        prometheus.io/scrape: "true"  # Enable scraping
+        prometheus.io/port: "8000"  # The port your metrics server is listening on
+    spec:
+      containers:
+      - name: subenum1-container  # Name of the container
+        image: om1201/subenum9:latest  # Your image name
+        ports:
+        - containerPort: 5000  # Port your Flask app listens on
+        - containerPort: 8000 # Port your metrics server is listening on (add this line)
+        env:
+        - name: DEBUG_PRINT # Enable debug prints (Optional)
+          value: "true"
