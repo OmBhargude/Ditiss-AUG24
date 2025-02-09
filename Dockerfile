@@ -5,6 +5,7 @@ WORKDIR /app
 # Copy subfinder binary - corrected path and ensure executable
 COPY subfinder /app/subfinder
 RUN chmod +x /app/subfinder
+RUN chmod +x /app/script1.sh
 
 # Copy your web application code
 COPY . /app/
@@ -13,8 +14,6 @@ COPY . /app/
 # Install dependencies
 RUN pip install -r requirements.txt
 
-# Install necessary utilities: dnsutils, curl, ping
-RUN apt-get update && apt-get install -y dnsutils curl iputils-ping --no-install-recommends
 
 # Set environment variables (if needed)
 ENV PORT 5000
