@@ -5,10 +5,10 @@ WORKDIR /app
 # Copy subfinder binary - corrected path and ensure executable
 COPY subfinder /app/subfinder
 RUN chmod +x /app/subfinder
-RUN chmod +x /app/script1.sh
 
 # Copy your web application code
 COPY . /app/
+RUN chmod +x /app/script1.sh
 
 # No need to copy requirements.txt again, it's already in /app
 # Install dependencies
