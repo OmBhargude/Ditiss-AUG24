@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: subenum1-container  # Name of the container
-        image: om1201/subenum9:latest  # Your image name
+        image: om1201/subenum11:latest  # Your image name
         ports:
         - containerPort: 5000  # Port your Flask app listens on
         - containerPort: 8000 # Port your metrics server is listening on (add this line)
