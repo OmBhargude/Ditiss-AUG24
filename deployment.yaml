@@ -16,7 +16,7 @@ spec:
         prometheus.io/port: "8000"  # The port your metrics server is listening on
     spec:
       containers:
-      - name: subenum-container  # Name of the container
+      - name: subenum1-container  # Name of the container
         image: om1201/subenum9:latest  # Your image name
         ports:
         - containerPort: 5000  # Port your Flask app listens on
