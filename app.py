@@ -1,69 +1,64 @@
-from flask import Flask, render_template, request
-import subprocess  # If you are using subprocess for subfinder
+from flask import Flask, request, render_template, jsonify
+import subprocess
+import re
+import os # Import the os module
 
 app = Flask(__name__)
 
-DEBUG_PRINT = app.config['DEBUG_PRINT'] = True # Or however you set your debug flag
+DEBUG_PRINT = True   # Set to False to disable debug prints
+PORT = int(os.environ.get('PORT', 5000)) # Get PORT from environment variable, default to 5000
 
-def enumerate_subdomains(domain):
-    print(f"DEBUG: Starting subdomain enumeration for domain: {domain}") # ADDED LOGGING - START
-    subdomains = []
-    try:
-        # Construct the subfinder command (adjust path if needed)
-        command = ['./subfinder', '-d', domain, '-oJ'] # Assuming subfinder is in /app/subfinder and you want JSON output
-        print(f"DEBUG: Executing command: {' '.join(command)}") # ADDED LOGGING - COMMAND
+def debug_print(message):
+    if DEBUG_PRINT:
+        print(message)
 
-        process = subprocess.Popen(command, cwd='/app', stdout=subprocess.PIPE, stderr=subprocess.PIPE) # Ensure cwd is /app if subfinder is there
-        stdout, stderr = process.communicate()
+# --- Health Check Endpoint - ADDED ---
+@app.route('/health')
+def health_check():
+    return "OK", 200
+# --- End Health Check Endpoint ---
 
-        if stderr:
-            error_message = stderr.decode()
-            print(f"DEBUG: subfinder stderr: {error_message}") # ADDED LOGGING - STDERR
-            return [], error_message # Return error message to display in frontend
-
-        output = stdout.decode()
-        print(f"DEBUG: subfinder stdout (raw): {output}") # ADDED LOGGING - STDOUT RAW
-
-        # ... (Your code to parse the JSON output from subfinder and extract subdomains) ...
-        # Example (you'll need to adapt this to your actual parsing logic):
-        import json
-        try:
-            json_output = json.loads(output)
-            if isinstance(json_output, list): # Assuming subfinder -oJ outputs a list of subdomains in JSON
-                subdomains = [item for item in json_output if isinstance(item, str)] # Extract subdomain strings
-                print(f"DEBUG: Extracted subdomains: {subdomains}") # ADDED LOGGING - EXTRACTED SUBDOMAINS
-            else:
-                print(f"DEBUG: Unexpected JSON output format from subfinder: {json_output}") # ADDED LOGGING - UNEXPECTED JSON FORMAT
-                return [], "Unexpected output format from subfinder" # Handle unexpected format
-        except json.JSONDecodeError as e:
-            print(f"DEBUG: JSONDecodeError: {e}") # ADDED LOGGING - JSON DECODE ERROR
-            print(f"DEBUG: Raw output that caused JSONDecodeError: {output}") # ADDED LOGGING - RAW OUTPUT ON JSON ERROR
-            return [], f"Error parsing subfinder output (JSONDecodeError): {e}"
-
-
-    except FileNotFoundError:
-        error_message = "Error: subfinder binary not found. Ensure it's in /app/subfinder and executable."
-        print(f"DEBUG: FileNotFoundError: {error_message}") # ADDED LOGGING - FILENOTFOUND
-        return [], error_message
-    except Exception as e:
-        error_message = f"An unexpected error occurred during subdomain enumeration: {e}"
-        print(f"DEBUG: Exception: {error_message}") # ADDED LOGGING - GENERIC EXCEPTION
-        return [], error_message
-
-    print(f"DEBUG: Subdomain enumeration completed successfully. Found {len(subdomains)} subdomains.") # ADDED LOGGING - COMPLETION
-    return subdomains, None # Return subdomains and no error
-
-@app.route('/')
+@app.route("/", methods=["GET"])
 def index():
-    domain = request.args.get('domain')
-    subdomain_results = []
-    error_message = None # Initialize error_message
+    results = None
+    error = None
+    domain = None
 
-    if domain:
-        subdomain_results, error_message = enumerate_subdomains(domain) # Call your enumeration function
+    debug_print("Request received")
 
-    return render_template('index.html', domain=domain, subdomain_results=subdomain_results, error_message=error_message)
+    if "domain" in request.args:
+        domain = request.args.get("domain")
+        debug_print(f"Domain received: {domain}")
 
+        if not domain:
+            error = "Please enter a domain."
+        elif "." not in domain:
+            error = "Invalid domain format."
+        else:
+            try:
+                debug_print("About to call run_subfinder_locally")
+                results = run_subfinder_locally(domain)
+                debug_print(f"Results from run_subfinder_locally: {results}")
 
-if __name__ == '__main__':
-    app.run(debug=DEBUG_PRINT, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
+                best_type = request.accept_mimetypes.best_match(['application/json', 'text/html'])
+
+                if best_type == 'application/json':
+                    debug_print("Returning JSON")
+                    return jsonify(results), 200
+                elif best_type == 'text/html':
+                    debug_print("Returning HTML")
+                    return render_template("index.html", results=results, error=error, domain=domain), 200
+                else:  # Default to HTML
+                    debug_print("Returning HTML (default)")
+                    return render_template("index.html", results=results, error=error, domain=domain), 200
+
+            except Exception as e:
+                error = f"An error occurred: {str(e)}"
+                debug_print(f"Error: {error}")
+                best_type = request.accept_mimetypes.best_match(['application/json', 'text/html'])
+                if best_type == 'application/json':
+                    return jsonify({"error": error}), 500
+                elif best_type == 'text/html':
+                    return render_template("index.html", error=error, domain=domain), 500
+                else:
+                    return
