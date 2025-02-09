@@ -18,8 +18,7 @@ REQUEST_LATENCY = Histogram('http_request_latency_seconds', 'Latency of HTTP req
 SUBFINDER_REQUEST_COUNT = Counter('subfinder_requests_total', 'Total number of Subfinder requests')
 SUBFINDER_ERROR_COUNT = Counter('subfinder_errors_total', 'Total number of Subfinder errors')
 
-# Start Prometheus metrics server
-start_http_server(8000)  # Expose metrics on port 8000
+
 
 @app.route("/", methods=["GET"])
 def index():
@@ -49,8 +48,9 @@ def run_subfinder_locally(domain):
         return {"error": "subfinder not found. Install it or provide the correct path."}
     except Exception as e:  # Catch any other exceptions
         SUBFINDER_ERROR_COUNT.inc()
-        logging.exception("Exception in run_subfinder_locally") # Log the full traceback
+        logging.exception("Exception in run_subfinder_locally")  # Log the full traceback
         return {"error": str(e)}
 
 if __name__ == "__main__":
-    app.run(debug=True, host='0.0.0.0')  # Only for development
+    start_http_server(8000)  # This line was missing the if __name__ == "__main__": block
+    app.run(debug=True, host='0.0.0.0', port=5000)  # Flask app runs on port 5000
