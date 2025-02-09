@@ -1,124 +1,69 @@
-from flask import Flask, request, render_template, jsonify
-import subprocess
-import re
-import os
-from prometheus_client import make_wsgi_app, Counter, Gauge, Histogram
-from werkzeug.middleware.dispatcher import DispatcherMiddleware
+from flask import Flask, render_template, request
+import subprocess  # If you are using subprocess for subfinder
 
 app = Flask(__name__)
 
-DEBUG_PRINT = os.environ.get("DEBUG_PRINT", "true").lower() == "true"
+DEBUG_PRINT = app.config['DEBUG_PRINT'] = True # Or however you set your debug flag
 
-# Prometheus metrics (Define these BEFORE the middleware)
-REQUEST_COUNT = Counter('http_requests_total', 'Total HTTP requests', ['method', 'endpoint', 'status_code'])
-REQUEST_LATENCY = Histogram('http_request_latency_seconds', 'HTTP request latency', ['method', 'endpoint'])
-SUBDOMAIN_ENUMERATION_COUNT = Counter('subdomain_enumeration_total', 'Total subdomain enumerations')
-ALIVE_SUBDOMAINS_COUNT = Gauge('alive_subdomains_count', 'Number of alive subdomains')
-DEAD_SUBDOMAINS_COUNT = Gauge('dead_subdomains_count', 'Number of dead subdomains')
-
-# Correctly integrate Prometheus middleware (Do this ONLY ONCE)
-app.wsgi_app = DispatcherMiddleware(app.wsgi_app, {'/metrics': make_wsgi_app()})
-
-def debug_print(message):
-    if DEBUG_PRINT:
-        print(message)
-
-@app.route("/", methods=["GET"])
-def index():
-    results = None
-    error = None
-    domain = None
-
-    debug_print("Request received")
-
-    if "domain" in request.args:
-        domain = request.args.get("domain")
-        debug_print(f"Domain received: {domain}")
-
-        if not domain:
-            error = "Please enter a domain."
-        elif "." not in domain:
-            error = "Invalid domain format."
-        else:
-            try:
-                debug_print("About to call run_subfinder_locally")
-                results = run_subfinder_locally(domain)
-                debug_print(f"Results from run_subfinder_locally: {results}")
-
-                # Update Prometheus metrics
-                if results and results.get("prometheus_data"):
-                    SUBDOMAIN_ENUMERATION_COUNT.inc()
-                    alive_count = sum(1 for sub in results["prometheus_data"] if sub.get("status") == "Alive")
-                    dead_count = sum(1 for sub in results["prometheus_data"] if sub.get("status") == "Dead")
-                    ALIVE_SUBDOMAINS_COUNT.set(alive_count)
-                    DEAD_SUBDOMAINS_COUNT.set(dead_count)
-
-                best_type = request.accept_mimetypes.best_match(['application/json', 'text/html'])
-
-                if best_type == 'application/json':
-                    return jsonify(results), 200
-                elif best_type == 'text/html':
-                    return render_template("index.html", results=results, error=error, domain=domain), 200
-                else:
-                    return render_template("index.html", results=results, error=error, domain=domain), 200
-
-            except Exception as e:
-                error = f"An error occurred: {str(e)}"
-                debug_print(f"Error: {error}")
-                best_type = request.accept_mimetypes.best_match(['application/json', 'text/html'])
-                if best_type == 'application/json':
-                    return jsonify({"error": error}), 500
-                else:
-                    return render_template("index.html", error=error, domain=domain), 500
-
-    debug_print("Returning initial HTML")
-    return render_template("index.html", results=results, error=error, domain=domain)
-
-
-def run_subfinder_locally(domain):
+def enumerate_subdomains(domain):
+    print(f"DEBUG: Starting subdomain enumeration for domain: {domain}") # ADDED LOGGING - START
+    subdomains = []
     try:
-        command = ["./script1.sh", domain]
-        debug_print(f"Running command: {command}")
-        result = subprocess.run(command, capture_output=True, text=True, check=True)
-        stdout = result.stdout.strip()
-        stderr = result.stderr.strip()
+        # Construct the subfinder command (adjust path if needed)
+        command = ['./subfinder', '-d', domain, '-oJ'] # Assuming subfinder is in /app/subfinder and you want JSON output
+        print(f"DEBUG: Executing command: {' '.join(command)}") # ADDED LOGGING - COMMAND
+
+        process = subprocess.Popen(command, cwd='/app', stdout=subprocess.PIPE, stderr=subprocess.PIPE) # Ensure cwd is /app if subfinder is there
+        stdout, stderr = process.communicate()
 
         if stderr:
-            debug_print(f"Subprocess stderr: {stderr}")
+            error_message = stderr.decode()
+            print(f"DEBUG: subfinder stderr: {error_message}") # ADDED LOGGING - STDERR
+            return [], error_message # Return error message to display in frontend
 
-        ansi_escape = re.compile(r'\x1b\[[0-9;]*[mG]')
-        cleaned_stdout = ansi_escape.sub('', stdout)
+        output = stdout.decode()
+        print(f"DEBUG: subfinder stdout (raw): {output}") # ADDED LOGGING - STDOUT RAW
 
-        subdomains_data = []
-        prometheus_data = []
+        # ... (Your code to parse the JSON output from subfinder and extract subdomains) ...
+        # Example (you'll need to adapt this to your actual parsing logic):
+        import json
+        try:
+            json_output = json.loads(output)
+            if isinstance(json_output, list): # Assuming subfinder -oJ outputs a list of subdomains in JSON
+                subdomains = [item for item in json_output if isinstance(item, str)] # Extract subdomain strings
+                print(f"DEBUG: Extracted subdomains: {subdomains}") # ADDED LOGGING - EXTRACTED SUBDOMAINS
+            else:
+                print(f"DEBUG: Unexpected JSON output format from subfinder: {json_output}") # ADDED LOGGING - UNEXPECTED JSON FORMAT
+                return [], "Unexpected output format from subfinder" # Handle unexpected format
+        except json.JSONDecodeError as e:
+            print(f"DEBUG: JSONDecodeError: {e}") # ADDED LOGGING - JSON DECODE ERROR
+            print(f"DEBUG: Raw output that caused JSONDecodeError: {output}") # ADDED LOGGING - RAW OUTPUT ON JSON ERROR
+            return [], f"Error parsing subfinder output (JSONDecodeError): {e}"
 
-        for line in cleaned_stdout.splitlines():
-            if "," in line:  # Comma-separated line (Prometheus)
-                parts = line.split(",")
-                if len(parts) == 3:  # Check if it has 3 parts
-                    subdomain = parts[0].strip()
-                    status = parts[1].strip()
-                    ip = parts[2].strip()
-                    prometheus_data.append({"subdomain": subdomain, "status": status, "ip": ip})
-            else:  # Original line (Web app)
-                parts = line.split("|")  # Split by pipe
-                if len(parts) == 3:
-                    subdomain = parts[0].strip()
-                    status = parts[1].strip()
-                    ip = parts[2].strip()
-                    subdomains_data.append({"subdomain": subdomain, "status": status, "ip": ip})
 
-        return {"subdomains": subdomains_data, "prometheus_data": prometheus_data}
-    except subprocess.CalledProcessError as e:
-        debug_print(f"CalledProcessError: {e}")
-        return {"error": str(e)}
     except FileNotFoundError:
-        debug_print("FileNotFoundError: script1.sh not found")
-        return {"error": "script1.sh not found. Make sure it's in the same directory as app.py"}
+        error_message = "Error: subfinder binary not found. Ensure it's in /app/subfinder and executable."
+        print(f"DEBUG: FileNotFoundError: {error_message}") # ADDED LOGGING - FILENOTFOUND
+        return [], error_message
     except Exception as e:
-        debug_print(f"Exception in run_subfinder_locally: {e}")
-        return {"error": str(e)}
+        error_message = f"An unexpected error occurred during subdomain enumeration: {e}"
+        print(f"DEBUG: Exception: {error_message}") # ADDED LOGGING - GENERIC EXCEPTION
+        return [], error_message
+
+    print(f"DEBUG: Subdomain enumeration completed successfully. Found {len(subdomains)} subdomains.") # ADDED LOGGING - COMPLETION
+    return subdomains, None # Return subdomains and no error
+
+@app.route('/')
+def index():
+    domain = request.args.get('domain')
+    subdomain_results = []
+    error_message = None # Initialize error_message
+
+    if domain:
+        subdomain_results, error_message = enumerate_subdomains(domain) # Call your enumeration function
+
+    return render_template('index.html', domain=domain, subdomain_results=subdomain_results, error_message=error_message)
 
 
-if __name__ == "__main__":
-    app.run(debug=True, host='0.0.0.0')
+if __name__ == '__main__':
+    app.run(debug=DEBUG_PRINT, host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))
