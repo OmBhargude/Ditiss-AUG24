@@ -6,11 +6,12 @@ spec:
   selector:
     app: subenum
   ports:
-    - protocol: TCP
-      port: 80
-      targetPort: 5000
-      name: http
-    - protocol: TCP
-      port: 8000  # Prometheus metrics port
-      name: metrics  # Important: Give it a name
-  type: NodePort  # Or NodePort
+  - protocol: TCP
+    port: 80  # The port that the service exposes (can be different from targetPort)
+    targetPort: 5000  # Your application port
+    name: http
+  - protocol: TCP
+    port: 8000  # Prometheus metrics port
+    targetPort: 8000  # Must match the port your application listens on for metrics
+    name: metrics  # Important: Give it a name
+  type: NodePort  # Use ClusterIP with Ingress (recommended)
