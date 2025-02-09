@@ -1,24 +1,24 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: subenum1-deployment  # Name of your deployment
+  name: myapp1-deployment  # Name of your deployment
   namespace: default # Replace with your namespace if it's not 'default'
 spec:
   replicas: 2    # Number of pod replicas (adjust as needed)
   selector:
     matchLabels:
-      app: subenum1  # Label to match pods
+      app: myapp1  # Label to match pods
   template:
     metadata:
       labels:
-        app: subenum1  # Label for the pods
+        app: myapp1  # Label for the pods
       annotations:    # Add Prometheus annotations here
         prometheus.io/scrape: "true"    # Enable scraping
         prometheus.io/port: "8000"    # The port your metrics server is listening on
     spec:
       containers:
-      - name: subenum1-container  # Name of the container
-        image: om1201/subenum11:latest  # Your image name - VERIFY THIS IS THE UPDATED IMAGE
+      - name: myapp1-container  # Name of the container
+        image: om1201/myapp:latest  # Your image name - VERIFY THIS IS THE UPDATED IMAGE
         imagePullPolicy: Always      # ENSURE KUBERNETES ALWAYS PULLS THE LATEST IMAGE
         ports:
         - containerPort: 5000    # Port your Flask app listens on
