@@ -1,7 +1,7 @@
 pipeline {
     agent any
     environment {
-        DOCKER_IMAGE_NAME = "om1201/subenum11" // Replace with your Docker Hub username and image name
+        DOCKER_IMAGE_NAME = "om1201/myapp" // Replace with your Docker Hub username and image name
     }
     stages {
         stage('Checkout') {
