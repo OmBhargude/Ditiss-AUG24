@@ -28,23 +28,3 @@ spec:
           value: "true"
         - name: PORT
           value: "5000"
-        # --- READINESS AND LIVENESS PROBES ---
-        readinessProbe:
-          httpGet:
-            path: /health      # Assuming you have a /health endpoint in Flask app
-            port: 5000
-          initialDelaySeconds: 5
-          periodSeconds: 10
-        livenessProbe:
-          httpGet:
-            path: /health      # Assuming you have a /health endpoint in Flask app
-            port: 5000
-          initialDelaySeconds: 15
-          periodSeconds: 20
-        resources:    # Optional: Define resource requests and limits - good practice
-          requests:
-            cpu: 100m
-            memory: 128Mi
-          limits:
-            cpu: 500m
-            memory: 512Mi
